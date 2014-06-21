@@ -1,0 +1,107 @@
+---
+title: "Coursera Practical Machine Learning Assignment (Yee Ling, Foo)"
+author: "Foo Yee Ling"
+date: "Saturday, June 21, 2014"
+output: html_document
+---
+
+This assignment requires the use of selected data from 6 fitness enthusiasts to build a model for the correct and incorrect use of the fitness equipment.
+
+The codes run on R using the Caret package.
+
+```{r}
+library(caret)
+set.seed(327)
+```
+
+Import the full data from its source (http://groupware.les.inf.puc-rio.br/har) and use a subset of the training data that gives the accelerometers readings and all the outcome for the 5 different classes.
+
+```{r}
+pmldata = read.csv(file="pml-training-all.csv")
+
+pmldatas = data.frame(pmldata$accel_belt_x,pmldata$accel_belt_y, pmldata$accel_belt_z, pmldata$accel_arm_x,pmldata$accel_arm_y, pmldata$accel_arm_z, pmldata$accel_dumbbell_x, pmldata$accel_dumbbell_y, pmldata$accel_dumbbell_z, pmldata$accel_forearm_x, pmldata$accel_forearm_y, pmldata$accel_forearm_z, pmldata$classe)
+```
+
+Let's take a quick look at the types of predictors to be used.
+
+```{r}
+str(pmldatas)
+```
+
+A visual inspection the data is performed, with the aim to suggest possible methods to model them.
+
+```{r}
+qplot(pmldata$accel_belt_x, pmldata$accel_belt_y, colour=pmldata$classe)
+qplot(pmldata$accel_arm_x, pmldata$accel_arm_y, colour=pmldata$classe)
+qplot(pmldata$accel_dumbbell_x, pmldata$accel_dumbbell_y, colour=pmldata$classe)
+qplot(pmldata$accel_forearm_x, pmldata$accel_forearm_y, colour=pmldata$classe)
+```
+
+As seen from the plots, it can be difficult to use linear regression models to represent the data. Howeverm model-free supervised learning methods such as k-nearest neighbour may be used to cluster the data very neatly.
+
+So, to start the modeling process, splice the data with 70% of it to be used for training and the remaining for prediction and testing.
+
+
+```{r}
+inTrain = createDataPartition(y=pmldatas$pmldata.classe, p=.7, list=FALSE)
+
+pmlTr = pmldatas[inTrain,] ## training data
+pmlTt = pmldatas[-inTrain,] ## testing data
+
+dim(pmlTr)
+dim(pmlTt)
+```
+
+Use the k- nearest neighbour classification method in the caret Package to form 5 classes of results, "A","B","C","D" and "E" using a 10-fold cross validation. 
+
+```{r}
+modelPml = train(pmldata.classe ~ .  , method = "knn", preProcess = c("center", "scale"), tuneLength = 10, trControl = trainControl(method = "cv"), data = pmlTr)
+
+## predict the results in the test set
+predTt = predict(modelPml, newdata = pmlTt)
+
+## display the results
+confusionMatrix(predTt, pmlTt$pmldata.classe)
+```
+
+Using the confusion matrix to validate the prediction results, and it can be seen that the knn model works very well, yielding approximately 94% accuracy. The sensitivity (recall) and specificity (precision) for the 5 classes are high at >90%. The 10-fold cross validation has been very balanced with more than 95% accuracy, thus demonstrating a robust and reliable model which can be confidently applied onto the 20 test cases. 
+
+```{r}
+pmldataT = read.csv("pml-testing.csv")
+pmldataTs = data.frame(pmldataT$accel_belt_x,pmldataT$accel_belt_y, pmldataT$accel_belt_z, pmldataT$accel_arm_x,pmldataT$accel_arm_y, pmldataT$accel_arm_z, pmldataT$accel_dumbbell_x, pmldataT$accel_dumbbell_y, pmldataT$accel_dumbbell_z, pmldataT$accel_forearm_x, pmldataT$accel_forearm_y, pmldataT$accel_forearm_z)
+```
+
+Predict the class probabilities.
+
+```{r}
+predT20test = predict(modelPml$finalModel, newdata = pmldataTs)
+```
+
+Display the result in terms of the classes for the 20 cases.
+
+```{r}
+result = rep(c(0), 12)
+for (i in 1:20){ 
+  
+  result[i]= which.max(predT20test[i,])
+  if (result[i] == 1) 
+  {result[i] = "A"
+  }
+  else if (result[i] == 2) 
+  {result[i] = "B"
+  }
+  else if (result[i] == 3) 
+  {result[i] = "C"
+  }
+  else if (result[i] == 4) 
+  {result[i] = "D"
+  }
+  else
+  {result[i] = "E"
+  }
+  
+}
+
+print(result)
+```
+
